@@ -1,7 +1,7 @@
 module main
 
 // converts letters inputted from a-j into numbers based on their positions (ex a = 1, b = 2)
-fn parse_x_val(ch byte) int {
+fn parse_x_val(ch u8) int {
 	//check if the inputted char is between a and j 
 	if ch >= `a` && ch <= `j` {
 		//subtract the character from 'a' ASCII value (96) 

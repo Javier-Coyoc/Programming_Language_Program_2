@@ -32,13 +32,13 @@ fn tokenize(input string) []Token {
 			continue
 		} 
 		
-		if ch == ',' {
+		if ch == ','.u8() {
 			tokens << Token{kind: .comma, value: ","}
 			pos++
 			continue
 		}
 
-		if ch == ';' {
+		if ch == ';'.u8() {
 			tokens << Token{kind: .semicolon, value: ";"}
 		}
 
