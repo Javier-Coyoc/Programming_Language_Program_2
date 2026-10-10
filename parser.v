@@ -1,6 +1,21 @@
 //Main job of parser is to take the tokens that were made in the lexer.v file check if they are valid or follow the BNF rules
 module main
 
+//Command types that can be entered 
+enum DrawCommandType {
+	cmd_grid
+	cmd_bar
+	cmd_line
+	cmd_fill
+}
+
+struct DrawCommand {
+	name   string 
+	coord1 string 
+	coord2 string
+	param  string 
+}
+
 struct Parser {
 mut:
 	tokens	[]Token
@@ -48,6 +63,19 @@ fn (p &Parser) has_semicolon_ahead() bool {
 	return false
 }
 
+fn validate_x(x string) ! {
+	if x.len == 0 || x[0] < `a` || x[0] > `j` {
+		return error("Syntax Error: Invalid column coordinate '${x}'. Must be a-j.")
+	}
+}
+
+// Validate row coordinate <y> is strictly between '0' and '9'
+fn validate_y(y string) ! {
+	if y.len == 0 || y[0] < `0` || y[0] > `9` {
+		return error("Syntax Error: Invalid row coordinate '${y}'. Must be 0-9.")
+	}
+}
+
 //========================
 //	Recursive Functions
 //========================
@@ -56,8 +84,7 @@ fn (mut p Parser) parse() ![]DrawCommand {
 	return p.parse_graph()
 }
 
-//Parse Graph function that reads BNF grammar input from top to bottom
-//Basically making the program expect that there will be a 'start' and 'end' keyword and between them the parse_plots
+//Parse Graph function that reads BNF grammar input from top to bottom,expects a 'start' and 'end' keyword and between them the parse_plots
 fn (mut p Parser) parse_graph() ![]DrawCommand {
 	println("\n================ Starting Leftmost Derivation ================")
 	p.sentential_form = "<graph>"
@@ -138,36 +165,38 @@ fn (mut p Parser) parse_plot() !DrawCommand {
 }
 
 // Rule: bar <x><y>,<y>
-// Rule: bar <x><y>,<y>
 fn (mut p Parser) parse_bar() !DrawCommand {
 	p.consume(.keyword, "bar")!
 	coord := p.peek()
-	p.consume(.coordinate, "")! 
+	p.consume(.coordinate, "")!
 	p.consume(.comma, ",")!
 	width := p.peek()
-	p.consume(.number, "")!   
+	p.consume(.number, "")!
 
-	// Step 1: Expand <plot> -> bar <x><y>,<y>
-	p.sentential_form = p.sentential_form.replace_once("<plot>", "bar <x><y>,<y>")
-	println("=> ${p.sentential_form}")
+	if coord.value.len < 2 {
+		return error("Syntax Error: Invalid coordinate '${coord.value}'")
+	}
 
-	// Extract individual x and y characters from coordinate
 	x_char := coord.value[0..1]
 	y_char := coord.value[1..2]
 
-	// Step 2: Expand leftmost <x>
+	validate_x(x_char)!
+	validate_y(y_char)!
+	validate_y(width.value)!
+
+	p.sentential_form = p.sentential_form.replace_once("<plot>", "bar <x><y>,<y>")
+	println("=> ${p.sentential_form}")
+
 	p.sentential_form = p.sentential_form.replace_once("<x>", x_char)
 	println("=> ${p.sentential_form}")
 
-	// Step 3: Expand leftmost <y>
 	p.sentential_form = p.sentential_form.replace_once("<y>", y_char)
 	println("=> ${p.sentential_form}")
 
-	// Step 4: Expand second <y>
 	p.sentential_form = p.sentential_form.replace_once("<y>", width.value)
 	println("=> ${p.sentential_form}")
 
-	return DrawCommand{name: "bar" coord1: coord.value param: width.value}
+	return DrawCommand{name: "bar", coord1: coord.value, param: width.value}
 }
 
 // Rule: line <x><y>,<x><y>
@@ -180,16 +209,22 @@ fn (mut p Parser) parse_line() !DrawCommand {
 	coord2 := p.peek()
 	p.consume(.coordinate, "")!
 
-	// Step 1: Expand <plot> -> line <x><y>,<x><y>
-	p.sentential_form = p.sentential_form.replace_once("<plot>", "line <x><y>,<x><y>")
-	println("=> ${p.sentential_form}")
+	if coord1.value.len < 2 || coord2.value.len < 2 {
+		return error("Syntax Error: Invalid coordinate format")
+	}
 
 	x1 := coord1.value[0..1]
 	y1 := coord1.value[1..2]
-	coordinate1 := coord1.value[0..2]
 	x2 := coord2.value[0..1]
 	y2 := coord2.value[1..2]
-	cooridnate2 := coord2.value[0..2]
+
+	validate_x(x1)!
+	validate_y(y1)!
+	validate_x(x2)!
+	validate_y(y2)!
+
+	p.sentential_form = p.sentential_form.replace_once("<plot>", "line <x><y>,<x><y>")
+	println("=> ${p.sentential_form}")
 
 	// Step-by-step substitution of each non-terminal in leftmost order
 	p.sentential_form = p.sentential_form.replace_once("<x>", x1)
@@ -204,7 +239,7 @@ fn (mut p Parser) parse_line() !DrawCommand {
 	p.sentential_form = p.sentential_form.replace_once("<y>", y2)
 	println("=> ${p.sentential_form}")
 
-	return DrawCommand{name: "line" coord1: coordinate1 coord2: cooridnate2}
+	return DrawCommand{name: "line", coord1: coord1.value, coord2: coord2.value}
 }
 
 // Rule: grid <x><y>
@@ -213,15 +248,20 @@ fn (mut p Parser) parse_grid() !DrawCommand {
 	coord := p.peek()
 	p.consume(.coordinate, "")!
 
-	p.sentential_form = p.sentential_form.replace_once("<plot>", "grid <x><y>")
-	println("=> ${p.sentential_form}")
+	if coord.value.len < 2 {
+		return error("Syntax Error: Invalid coordinate '${coord.value}'")
+	}
 
 	x_char := coord.value[0..1]
 	y_char := coord.value[1..2]
 
+	validate_x(x_char)!
+	validate_y(y_char)!
+
+	p.sentential_form = p.sentential_form.replace_once("<plot>", "grid <x><y>")
+	println("=> ${p.sentential_form}")
 	p.sentential_form = p.sentential_form.replace_once("<x>", x_char)
 	println("=> ${p.sentential_form}")
-
 	p.sentential_form = p.sentential_form.replace_once("<y>", y_char)
 	println("=> ${p.sentential_form}")
 
@@ -234,18 +274,22 @@ fn (mut p Parser) parse_fill() !DrawCommand {
 	coord := p.peek()
 	p.consume(.coordinate, "")!
 
-	p.sentential_form = p.sentential_form.replace_once("<plot>", "fill <x><y>")
-	println("=> ${p.sentential_form}")
+	if coord.value.len < 2 {
+		return error("Syntax Error: Invalid coordinate '${coord.value}'")
+	}
 
 	x_char := coord.value[0..1]
 	y_char := coord.value[1..2]
 
+	validate_x(x_char)!
+	validate_y(y_char)!
+
+	p.sentential_form = p.sentential_form.replace_once("<plot>", "fill <x><y>")
+	println("=> ${p.sentential_form}")
 	p.sentential_form = p.sentential_form.replace_once("<x>", x_char)
 	println("=> ${p.sentential_form}")
-
 	p.sentential_form = p.sentential_form.replace_once("<y>", y_char)
 	println("=> ${p.sentential_form}")
-
 	return DrawCommand{name: "fill" coord1: coord.value}
 }
 

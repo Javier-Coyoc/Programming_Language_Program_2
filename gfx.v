@@ -108,76 +108,7 @@ fn frame(app &App) {
             else {}
         }
     }
-
     app.gg.end()
-}
-
-fn render_terminal_graph(commands []DrawCommand) {
-	// 1. Create a 10x10 character grid initialized with dot spacers '. '
-	mut grid := [][]string{len: 10, init: []string{len: 10, init: '. '}}
-
-	// 2. Plot commands onto the 2D grid
-	for cmd in commands {
-		match cmd.name {
-			'fill' {
-				if cmd.coord1.len >= 2 {
-					x := int(cmd.coord1[0] - `a`)
-					y := int(cmd.coord1[1] - `0`)
-					if x >= 0 && x < 10 && y >= 0 && y < 10 {
-						grid[y][x] = '█ '
-					}
-				}
-			}
-			'bar' {
-				if cmd.coord1.len >= 2 {
-					x := int(cmd.coord1[0] - `a`)
-					y := int(cmd.coord1[1] - `0`)
-					width := cmd.param.int()
-
-					for i in 0 .. width {
-						if x + i < 10 && y >= 0 && y < 10 {
-							grid[y][x + i] = '█ '
-						}
-					}
-				}
-			}
-			'grid' {
-				if cmd.coord1.len >= 2 {
-					x := int(cmd.coord1[0] - `a`)
-					y := int(cmd.coord1[1] - `0`)
-					if x >= 0 && x < 10 && y >= 0 && y < 10 {
-						grid[y][x] = '□ '
-					}
-				}
-			}
-			'line' {
-				if cmd.coord1.len >= 2 && cmd.coord2.len >= 2 {
-					x1 := int(cmd.coord1[0] - `a`)
-					y1 := int(cmd.coord1[1] - `0`)
-					x2 := int(cmd.coord2[0] - `a`)
-					y2 := int(cmd.coord2[1] - `0`)
-
-					if x1 < 10 && y1 < 10 { grid[y1][x1] = '* ' }
-					if x2 < 10 && y2 < 10 { grid[y2][x2] = '* ' }
-				}
-			}
-			else {}
-		}
-	}
-
-	// 3. Print top column labels (a-j)
-	println('\n    a b c d e f g h i j')
-	println('  +--------------------')
-
-	// 4. Print rows with side row labels (0-9)
-	for row in 0 .. 10 {
-		print('${row} | ')
-		for col in 0 .. 10 {
-			print(grid[row][col])
-		}
-		println('')
-	}
-	println('')
 }
 
 pub fn render_graph(commands []DrawCommand) {
