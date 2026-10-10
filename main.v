@@ -3,35 +3,50 @@ module main
 import os
 
 fn display_bnf() {
-    println("=================BNF GRAMMAR=================")
-	println("     <graph>  ::= start <plot_stmts> end")
-    println("<plot_stmts>  ::= <plot> | <plot> ; <plot_stmt>")
-    println(" <plot_stmt>  ::= bar <x><y>,<y>
-                | line <x><y>,<x><y>
-                | grid <x>,<y>
-                | fill <x><y>")
+    println("================= BNF GRAMMAR =================")
+    println("     <graph>  ::= start <plot_stmts> end")
+    println("<plot_stmts>  ::= <plot> | <plot> ; <plot_stmts>")
+    println("      <plot>  ::= bar <x><y>,<y>")
+    println("                | line <x><y>,<x><y>")
+    println("                | grid <x><y>")
+    println("                | fill <x><y>")
     println("        <x>   ::= a | b | c | d | e | f | g | h | i | j")        
-    println("        <y>   ::= 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9");
-    println("=============================================")
+    println("        <y>   ::= 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9")
+    println("==============================================")
 }      
 
 fn main() {
     for {
         display_bnf()
 
-        input_str := os.input("Enter a program string or STOP to exit: ")
+        input_str := os.input("\nEnter a program string or STOP to exit: ").trim_space()
         if input_str == "STOP" {
             break
         }
+        if input_str.len == 0 {
+            continue
+        }
 
-        //pass input into tokenize function
+        //tokenize input
         tokens := tokenize(input_str)
 
-        /*//run the tokenized text into parser function
+        //parse tokens & print Leftmost Derivation
         mut parser := Parser{tokens: tokens}
-        commands := parser.parse()*/
+        commands := parser.parse() or {
+            println(err)
+            println("")
+            continue 
+        }
+        
+        // print Parse Tree
+        _ = os.input("\nPress ENTER to view Parse Tree...")
+        display_parse_tree(commands)
 
-        _ = os.input("Press ENTER to view Parse Tree...")
+        // Prints graphics in command line of shapes that were entered
+        _ = os.input("\nPress ENTER to render graphics window...")
+        
+        render_terminal_graph(commands)
+        //println("Graphics window closed. Exiting...")
+        //break
     }
 }
-

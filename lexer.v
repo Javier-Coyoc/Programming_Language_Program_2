@@ -32,15 +32,17 @@ fn tokenize(input string) []Token {
 			continue
 		} 
 		
-		if ch == ','.u8() {
-			tokens << Token{kind: .comma, value: ","}
-			pos++
-			continue
-		}
+		if ch == `,` {
+            tokens << Token{kind: .comma, value: ","}
+            pos++
+            continue
+        }
 
-		if ch == ';'.u8() {
-			tokens << Token{kind: .semicolon, value: ";"}
-		}
+        if ch == `;` {
+            tokens << Token{kind: .semicolon, value: ";"}
+            pos++
+            continue
+        }
 
 		//Using the is_letter() function for strings to check if the current input position we're at is a string/character
 		if ch.is_letter() {
@@ -63,6 +65,7 @@ fn tokenize(input string) []Token {
 				//If it is not a keyword then it's probably a coordinate (ex. a1, b2, c3)
 				tokens << Token{kind: .coordinate, value: text}
 			}
+			continue
 		}
 
 

@@ -32,51 +32,84 @@ fn (mut p Parser) consume(expected_kind TokenType, expected_value string) ! {
 	}
 }
 
+// Lookahead helper to check if a semicolon exists in remaining plot statements
+fn (p &Parser) has_semicolon_ahead() bool {
+	mut i := p.pos
+
+	for i < p.tokens.len {
+		if p.tokens[i].kind == .semicolon {
+			return true
+		}
+		if p.tokens[i].value == 'end' || p.tokens[i].kind == .eof {
+			return false
+		}
+		i++
+	}
+	return false
+}
+
 //========================
 //	Recursive Functions
 //========================
 fn (mut p Parser) parse() ![]DrawCommand {
 	// Start the chain reaction
-	return p.parse_graph()!
+	return p.parse_graph()
 }
 
 //Parse Graph function that reads BNF grammar input from top to bottom
 //Basically making the program expect that there will be a 'start' and 'end' keyword and between them the parse_plots
 fn (mut p Parser) parse_graph() ![]DrawCommand {
-	println("Starting Leftmost Derivation:")
-	println("<graph> -> start <plot_stmts> end")
-	
-	mut commands := []DrawCommand{}
+	println("\n================ Starting Leftmost Derivation ================")
+	p.sentential_form = "<graph>"
+	println(p.sentential_form)
+
+	//Expand <graph> -> start <plot_stmts> end
+	//replace_once function removes the first instance of the 1st parameter (<graph>) and replaces it with what's in 2nd parameter
+	p.sentential_form = p.sentential_form.replace_once("<graph>", "start <plot_stmts> end")
+	println("=> ${p.sentential_form}")
 
 	// Must start with 'start'
 	p.consume(.keyword, "start")!
 	
 	// has to go to the next rule to get the commands
-	// commands = p.parse_plot_stmts()! 
+	commands := p.parse_plot_stmts()! 
 	
 	// Must end with 'end'
 	p.consume(.keyword, "end")!
+
+	//Check to see if no invalid tokens remain after end, if so return error
+	if p.peek().kind != .eof {
+		return error("Syntax Error: Unexpected extra tokens after 'end' keyword")
+	}
 	
 	return commands
 }
 
 //check <plot> keyword and if it the input has any ';' which means there is another <plot_stmt>
 fn (mut p Parser) parse_plot_stmts() ![]DrawCommand {
-	//Every plot_stmts starts with at least one <plot>
+	
+	mut commands := []DrawCommand{}
+
+	// Expand <plot_stmts> based on whether another statement follows
+	if p.has_semicolon_ahead() {
+		p.sentential_form = p.sentential_form.replace_once("<plot_stmts>", "<plot> ; <plot_stmts>")
+	} else {
+		p.sentential_form = p.sentential_form.replace_once("<plot_stmts>", "<plot>")
+	}
+	println("=> ${p.sentential_form}")
+
+	//Always check the first <plot> in the <plot_stmts> 
 	cmd := p.parse_plot()!
 	commands << cmd
 
 	//use p.peek() to check if the next token is a ;
-	current := p.peek()
-	if current.kind == .semicolon {
-		// Consume it
+	if p.peek().kind == .semicolon {
 		p.consume(.semicolon, ";")!
 
 		// Recursively parse the rest of the statements and append them
 		more_commands := p.parse_plot_stmts()!
 		commands << more_commands
 	}
-
 		return commands
 }
 
@@ -86,77 +119,134 @@ fn (mut p Parser) parse_plot() !DrawCommand {
 
 	// Ensure the command starts with a keyword
 	if current.kind != .keyword {
-		return error("Syntax Error: Expected a plot command ('bar', 'line', 'grid', 'fill'), but got '${current.value}'")
+		return error("Syntax Error: expected a plot command ('bar', 'line', 'grid', 'fill'), but got '${current.value}'")
 	}
 
 	// Match the keyword to the correct parsing rule
 	match current.value {
-		'bar' {
-			return p.parse_bar()!
-		}
+		'bar' { 
+			return p.parse_bar()! }
 		'line' {
-			return p.parse_line()!
-		}
+			return p.parse_line()! }
 		'grid' {
-			return p.parse_grid()!
-		}
+			return p.parse_grid()! }
 		'fill' {
-			return p.parse_fill()!
-		}
+			return p.parse_fill()! }
 		else {
-			return error("Syntax Error: Unknown plot command '${current.value}'")
-		}
+			return error("Syntax Error: Unknown plot command '${current.value}'") }
 	}
 }
 
 // Rule: bar <x><y>,<y>
+// Rule: bar <x><y>,<y>
 fn (mut p Parser) parse_bar() !DrawCommand {
 	p.consume(.keyword, "bar")!
-
 	coord := p.peek()
-	p.consume(.coordinate, "")! // Expects a coordinate like 'b4'
-
+	p.consume(.coordinate, "")! 
 	p.consume(.comma, ",")!
-
 	width := p.peek()
-	p.consume(.number, "")! 
+	p.consume(.number, "")!   
 
-return DrawCommand{cmd: "bar ${coord.value},${width.value}"}
+	// Step 1: Expand <plot> -> bar <x><y>,<y>
+	p.sentential_form = p.sentential_form.replace_once("<plot>", "bar <x><y>,<y>")
+	println("=> ${p.sentential_form}")
+
+	// Extract individual x and y characters from coordinate
+	x_char := coord.value[0..1]
+	y_char := coord.value[1..2]
+
+	// Step 2: Expand leftmost <x>
+	p.sentential_form = p.sentential_form.replace_once("<x>", x_char)
+	println("=> ${p.sentential_form}")
+
+	// Step 3: Expand leftmost <y>
+	p.sentential_form = p.sentential_form.replace_once("<y>", y_char)
+	println("=> ${p.sentential_form}")
+
+	// Step 4: Expand second <y>
+	p.sentential_form = p.sentential_form.replace_once("<y>", width.value)
+	println("=> ${p.sentential_form}")
+
+	return DrawCommand{name: "bar" coord1: coord.value param: width.value}
 }
 
-// line <x><y>,<x><y>
+// Rule: line <x><y>,<x><y>
 fn (mut p Parser) parse_line() !DrawCommand {
 	p.consume(.keyword, "line")!
-	
 	coord1 := p.peek()
+	//The reason for the "" - empty quotation is because its expecting dynamic user input (we cant predict it that would be static hard-coding)
 	p.consume(.coordinate, "")!
-	
 	p.consume(.comma, ",")!
-	
 	coord2 := p.peek()
 	p.consume(.coordinate, "")!
 
-	return DrawCommand{cmd: "line ${coord1.value},${coord2.value}"}
+	// Step 1: Expand <plot> -> line <x><y>,<x><y>
+	p.sentential_form = p.sentential_form.replace_once("<plot>", "line <x><y>,<x><y>")
+	println("=> ${p.sentential_form}")
+
+	x1 := coord1.value[0..1]
+	y1 := coord1.value[1..2]
+	coordinate1 := coord1.value[0..2]
+	x2 := coord2.value[0..1]
+	y2 := coord2.value[1..2]
+	cooridnate2 := coord2.value[0..2]
+
+	// Step-by-step substitution of each non-terminal in leftmost order
+	p.sentential_form = p.sentential_form.replace_once("<x>", x1)
+	println("=> ${p.sentential_form}")
+
+	p.sentential_form = p.sentential_form.replace_once("<y>", y1)
+	println("=> ${p.sentential_form}")
+
+	p.sentential_form = p.sentential_form.replace_once("<x>", x2)
+	println("=> ${p.sentential_form}")
+
+	p.sentential_form = p.sentential_form.replace_once("<y>", y2)
+	println("=> ${p.sentential_form}")
+
+	return DrawCommand{name: "line" coord1: coordinate1 coord2: cooridnate2}
 }
 
-// grid <x><y>
+// Rule: grid <x><y>
 fn (mut p Parser) parse_grid() !DrawCommand {
 	p.consume(.keyword, "grid")!
-	
 	coord := p.peek()
 	p.consume(.coordinate, "")!
 
-	return DrawCommand{cmd: "grid ${coord.value}"}
+	p.sentential_form = p.sentential_form.replace_once("<plot>", "grid <x><y>")
+	println("=> ${p.sentential_form}")
+
+	x_char := coord.value[0..1]
+	y_char := coord.value[1..2]
+
+	p.sentential_form = p.sentential_form.replace_once("<x>", x_char)
+	println("=> ${p.sentential_form}")
+
+	p.sentential_form = p.sentential_form.replace_once("<y>", y_char)
+	println("=> ${p.sentential_form}")
+
+	return DrawCommand{name: "grid" coord1: coord.value}
 }
 
-// fill <x><y>
+// Rule: fill <x><y>
 fn (mut p Parser) parse_fill() !DrawCommand {
 	p.consume(.keyword, "fill")!
-	
 	coord := p.peek()
 	p.consume(.coordinate, "")!
 
-	return DrawCommand{cmd: "fill ${coord.value}"}
+	p.sentential_form = p.sentential_form.replace_once("<plot>", "fill <x><y>")
+	println("=> ${p.sentential_form}")
+
+	x_char := coord.value[0..1]
+	y_char := coord.value[1..2]
+
+	p.sentential_form = p.sentential_form.replace_once("<x>", x_char)
+	println("=> ${p.sentential_form}")
+
+	p.sentential_form = p.sentential_form.replace_once("<y>", y_char)
+	println("=> ${p.sentential_form}")
+
+	return DrawCommand{name: "fill" coord1: coord.value}
 }
 
 //======================
@@ -164,13 +254,33 @@ fn (mut p Parser) parse_fill() !DrawCommand {
 //======================
 
 fn display_parse_tree(commands []DrawCommand) {
-	println("\n================ PARSE TREE ================")
+	println("=================== PARSE TREE ===================")
 	println("<graph>")
-	println(" ├── start")
-	println(" ├── <plot_stmts>")
+	println("|-- start")
+	println("|-- <plot_stmts>")
+
 	for cmd in commands {
-		println(" │    ├── <plot>: ${cmd.cmd}")
+		println("|   |-- <plot>")
+		println("|   |   |-- ${cmd.name}")
+
+		// Print first coordinate breakdown (<x> and <y>)
+		if cmd.coord1.len >= 2 {
+			println("|   |   |-- <x> -> ${cmd.coord1[0..1]}")
+			println("|   |   |-- <y> -> ${cmd.coord1[1..2]}")
+
+		}
+
+		// Print second coordinate (for line) or width parameter (for bar)
+		if cmd.coord2.len >= 2 {
+			println("|   |   |-- ,")
+			println("|   |   |-- <x> -> ${cmd.coord2[0..1]}")
+			println("|   |   |-- <y> -> ${cmd.coord2[1..2]}")
+		} else if cmd.param.len > 0 {
+			println("|   |   |-- ,")
+			println("|   |   |-- <y> -> ${cmd.param}")
+		}
 	}
-	println(" └── end")
-	println("============================================")
+
+	println("|-- end")
+	println("==================================================")
 }
