@@ -45,8 +45,8 @@ fn main() {
         // Prints graphics in command line of shapes that were entered
         _ = os.input("\nPress ENTER to render graphics window...")
         
-        render_terminal_graph(commands)
-        //println("Graphics window closed. Exiting...")
-        //break
+        render_graph(commands)
+        println("Graphics window closed. Exiting...")
+
     }
 }
