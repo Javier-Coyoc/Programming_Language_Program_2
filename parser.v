@@ -173,7 +173,7 @@ fn (mut p Parser) parse_bar() !DrawCommand {
 	width := p.peek()
 	p.consume(.number, "")!
 
-	if coord.value.len < 2 {
+	if coord.value.len != 2 {
 		return error("Syntax Error: Invalid coordinate '${coord.value}'")
 	}
 
@@ -209,7 +209,7 @@ fn (mut p Parser) parse_line() !DrawCommand {
 	coord2 := p.peek()
 	p.consume(.coordinate, "")!
 
-	if coord1.value.len < 2 || coord2.value.len < 2 {
+	if coord1.value.len != 2 || coord2.value.len != 2 {
 		return error("Syntax Error: Invalid coordinate format")
 	}
 
@@ -248,7 +248,7 @@ fn (mut p Parser) parse_grid() !DrawCommand {
 	coord := p.peek()
 	p.consume(.coordinate, "")!
 
-	if coord.value.len < 2 {
+	if coord.value.len != 2 {
 		return error("Syntax Error: Invalid coordinate '${coord.value}'")
 	}
 
@@ -274,7 +274,7 @@ fn (mut p Parser) parse_fill() !DrawCommand {
 	coord := p.peek()
 	p.consume(.coordinate, "")!
 
-	if coord.value.len < 2 {
+	if coord.value.len != 2 {
 		return error("Syntax Error: Invalid coordinate '${coord.value}'")
 	}
 
